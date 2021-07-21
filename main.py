@@ -14,7 +14,7 @@ height = 160 * scale
 clock = pygame.time.Clock()
 fps = 60
 
-
+#this is a new thing
 
 screen = pygame.display.set_mode((width, height))
 
