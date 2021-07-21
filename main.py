@@ -122,9 +122,7 @@ class Bullet(pygame.sprite.Sprite):
 	def __init__(self, img, x, y, angle):
 		pygame.sprite.Sprite.__init__(self)
 		self.image = fireball_sheet
-		self.rect = self.image.get_rect()
-		self.rect.x = x 
-		self.rect.y = y 
+		
 		self.x = x 
 		self.y = y
 		self.angle = math.radians(angle)
@@ -138,21 +136,43 @@ class Bullet(pygame.sprite.Sprite):
 		self.animation_frames = []
 		self.animation_cooldown = 5
 		self.update_time = 0
+		self.frame_idx = 0
+		self.frames = self.image.sheet.get_width() // 64
+		#self.update_time = 0
 
-		self.frames = 
-		for i in range(self.frames)
+
+		for i in range(self.frames):
+			self.animation_frames.append(fireball_sheet.get_sprite(i, 0, .5))
+		self.animation_frames = list(reversed(self.animation_frames))
+		self.image = self.animation_frames[0]
+
+
+		self.rect = self.image.get_rect()
+		self.rect.x = x 
+		self.rect.y = y 
 
 	def update(self):
 		if self.rect.right < 0 or self.rect.left > width or self.rect.bottom < 0 or self.rect.top > height - 70:
 			explosion_group.add(Explosion(self.x, self.y))
 			self.kill()
 
+		if pygame.time.get_ticks() - self.update_time > self.animation_cooldown:
+			self.update_time = pygame.time.get_ticks()
+			self.frame_idx += 1
+			if self.frame_idx >= len(self.animation_frames):
+				self.frame_idx = 0
+			self.image = self.animation_frames[self.frame_idx]
+			self.image = pygame.transform.rotate(pygame.transform.flip(self.image, True, False), math.degrees(self.angle))
 
 		self.x += self.dx
 		self.y += self.dy
 
 		self.rect.x = self.x
 		self.rect.y = self.y
+
+
+	def draw(self, screen):
+		screen.blit(self.image, screen)
 
 
 
@@ -273,6 +293,7 @@ def game():
 
 		bullet_group.draw(screen)
 		bullet_group.update()
+
 		if pygame.time.get_ticks() - update_time > 2000:
 			i = random.randrange(len(enemy_types))
 			enemy_group.add(Enemy(enemy_health[i], enemy_animations[i], 200 + random.randrange(0, 200) - 100, height - 110, 2))
