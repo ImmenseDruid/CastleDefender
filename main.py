@@ -1,5 +1,5 @@
 
-import pygame, os, math, random, ui, spriteSheet
+import pygame, os, math, random, ui, spriteSheet, audio
 
 from enemy import Enemy
 
@@ -47,7 +47,10 @@ animation_types = ['rise', 'walk']
 
 #music
 tracks = ['Music/1-Dark Fantasy Studio- The ceremonial (seamless).wav', 'Music/2-Dark Fantasy Studio- Demon\'s cage (seamless).wav', 'Music/3-Dark Fantasy Studio- Creepy doll (seamless).wav', 'Music/4-Dark Fantasy Studio- Dread (seamless).wav', 'Music/5-Dark Fantasy Studio- Lullaby (seamless).wav',
-	'Music/6-Dark Fantasy Studio- A death embrace (seamless).wav',	'Music/9-Dark Fantasy Studio- Dark echoes (seamless)',	'Music/10-Dark Fantasy Studio- The mirror (seamless)',	'Music/11-Dark Fantasy Studio- Silent night (seamless)']
+	'Music/6-Dark Fantasy Studio- A death embrace (seamless).wav',	'Music/9-Dark Fantasy Studio- Dark echoes (seamless).wav',	'Music/10-Dark Fantasy Studio- The mirror (seamless).wav',	'Music/11-Dark Fantasy Studio- Silent night (seamless).wav']
+
+audioMixer = audio.Mixer(tracks)
+pygame.mixer.music.set_endevent(USEREVENT + 1)
 
 for enemy in enemy_types:
 	animation_list = []
@@ -239,6 +242,10 @@ pygame.display.set_caption('Castle Defender')
 
 
 def main():
+	panel = ui.Panel(0, 0, screen)
+
+	start_label = ui.Label(width // 2, height // 2, 'Press any key to begin')
+
 
 	run = True
 	pygame.mixer.music.load(tracks[0])
@@ -256,6 +263,11 @@ def main():
 		for event in pygame.event.get():
 			if event.type == QUIT:
 				run = False
+			if event.type == audioMixer.getEndEvent():
+				audioMixer.play()
+			if event.type == KEYDOWN:
+				game()
+				run = False
 
 		if pygame.mouse.get_pressed()[0] == 1:
 			
@@ -263,6 +275,7 @@ def main():
 			game()
 			run = False
 
+		start_label.draw(panel)
 		crosshair.draw()
 		pygame.display.update()
 
@@ -275,8 +288,7 @@ def game():
 	#pygame.mixer.music.queue('Music/2-Dark Fantasy Studio- Demon\'s cage (seamless).wav')
 	#pygame.mixer.music.fadeout(3000)
 
-	pygame.mixer.music.load(tracks[1])
-	pygame.mixer.music.play()
+	audioMixer.play()
 
 	while run:
 		clock.tick(fps)
@@ -313,6 +325,8 @@ def game():
 			if event.type == KEYDOWN:
 				if event.key == K_ESCAPE:
 					options()
+			if event.type == audioMixer.getEndEvent():
+				audioMixer.play()
 
 
 		if pygame.mouse.get_pressed()[0] == 1 and not house.fired:
@@ -329,7 +343,7 @@ def options():
 	run = True
 	panel = ui.Panel(0, 0, screen)
 	music_slider = ui.Slider(width // 2 - 50, height // 2 - 25, (100, 50))
-	music_slider.p = 1
+	music_slider.p = audioMixer.getVolume()
 	backtogame_button = ui.Button(width // 2 - 50, height // 2 - 25 + 100, (100, 50), (255, 255, 255), None)
 
 	while run:
@@ -342,6 +356,8 @@ def options():
 		for event in pygame.event.get():
 			if event.type == QUIT:
 				run = False
+			if event.type == audioMixer.getEndEvent():
+				audioMixer.play()
 
 
 		if backtogame_button.draw(panel):

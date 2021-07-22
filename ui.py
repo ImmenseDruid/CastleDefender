@@ -25,6 +25,9 @@ class Label():
 
 		screen.surface.blit(img, (self.x + screen.x, self.y + screen.y))
 
+	def set_text(self, text):
+		self.text = text
+
 
 class Slider():
 
