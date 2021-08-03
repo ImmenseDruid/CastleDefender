@@ -7,6 +7,7 @@ from pygame.locals import *
 
 
 pygame.init()
+pygame.font.init()
 
 scale = 5
 width = 272 * scale
@@ -15,6 +16,15 @@ clock = pygame.time.Clock()
 fps = 60
 
 #this is a new thing
+
+font = pygame.font.SysFont('Futura', 30)
+font_60 = pygame.font.SysFont('Futura', 60)
+
+
+#Colors
+
+WHITE = (255, 255, 255)
+GREY = (100, 100, 100)
 
 screen = pygame.display.set_mode((width, height))
 
@@ -28,7 +38,7 @@ mountains = pygame.transform.scale(mountains, (mountains.get_width() * scale, mo
 grassTile = pygame.image.load('images/Environment/grassTile.png')
 grassTile = pygame.transform.scale(grassTile, (grassTile.get_width() * 2, grassTile.get_height() * 2)).convert_alpha()
 
-house_img =  pygame.transform.flip(pygame.image.load('images/house-a.png'), True, False)
+
 
 fireball_sheet = spriteSheet.SpriteSheet(pygame.transform.flip(pygame.image.load('images/FireBall_2_64x64.png'), True, False).convert_alpha(), (64, 64))
 explosion_sheet = spriteSheet.SpriteSheet(pygame.transform.flip(pygame.image.load('images/Explosion_2_64x64.png'), True, False).convert_alpha(), (64, 64))
@@ -44,6 +54,9 @@ enemy_health = [75, 150]
 enemy_canFly = [False, False]
 
 animation_types = ['rise', 'walk']
+
+
+high_score = 0
 
 #music
 tracks = ['Music/1-Dark Fantasy Studio- The ceremonial (seamless).wav', 'Music/2-Dark Fantasy Studio- Demon\'s cage (seamless).wav', 'Music/3-Dark Fantasy Studio- Creepy doll (seamless).wav', 'Music/4-Dark Fantasy Studio- Dread (seamless).wav', 'Music/5-Dark Fantasy Studio- Lullaby (seamless).wav',
@@ -82,8 +95,28 @@ enemy_1 = Enemy(enemy_health[0], enemy_animations[0], 200, height - 110, 2, enem
 enemy_group = pygame.sprite.Group()
 
 enemy_group.add(enemy_1)
+
+
+wave = 1
+wave_difficulty = 0
+target_difficulty = 1000
+difficulty_multiplier = 1.1
+game_over = False 
+next_level = False 
+enemies_alive = 0
 explosion_group = pygame.sprite.Group()
 explosions_to_create = []
+
+tower_cost = 5000
+towers_positions = [
+[width - 290, height - 240],
+[width - 150, height - 240],
+[width - 290, height - 322],
+[width - 150, height - 322]
+]
+
+
+
 
 def tiledImage(width, height, img):
 	surf = pygame.Surface((width, height))
@@ -94,6 +127,40 @@ def tiledImage(width, height, img):
 		x += img.get_width()
 	surf.set_colorkey((0,0,0))
 	return surf
+
+def extract_img(img, width, height, x, y):
+	surf = pygame.Surface((width, height))
+	surf.blit(img, (-x * width, -y * height))
+	surf.set_colorkey((0,0,0))
+	return surf
+
+def extract_img_precise(img, width, height, x, y):
+	surf = pygame.Surface((width, height))
+	surf.fill((200, 20, 200))
+	surf.blit(img, (-x, -y))
+	surf.set_colorkey((200, 20, 200))
+	return surf
+
+def draw_text(text, font, text_col, x, y):
+	img = font.render(text, True, text_col)
+	screen.blit(img, (x - img.get_width() // 2, y - img.get_height() // 2))
+
+#Button Imgs
+repair_img = extract_img(pygame.image.load('images/icons.png').convert_alpha(), 32, 32, 4, 4)
+armour_img = extract_img(pygame.image.load('images/icons.png').convert_alpha(), 32, 32, 7, 7)
+
+tower_button_img = extract_img(pygame.image.load('images/icons.png').convert_alpha(), 32, 32, 3, 6)
+
+
+
+#Tower Imgs
+tower_img = extract_img_precise(pygame.image.load('images/Castle Tileset.png').convert_alpha(), 32, 32, 80, 0)
+
+
+#Castle_imgs
+
+house_img = extract_img_precise(pygame.image.load('images/Castle Tileset.png').convert_alpha(), 80, 32, 0, 0)
+#house_img.set_colorkey((200, 20, 200))
 
 
 class Explosion(pygame.sprite.Sprite):
@@ -178,6 +245,16 @@ class Bullet(pygame.sprite.Sprite):
 		screen.blit(self.image, screen)
 
 
+def show_info():
+	draw_text(f'Money : {house.coins}', font, GREY, 100, 20)
+	draw_text(f'Score : {house.score}', font, GREY, 350, 20)
+	draw_text(f'HighScore : {high_score}', font, GREY, 350, 50)
+	draw_text(f'Level : {wave}', font, GREY, width // 2, 20)
+	draw_text(f'Health : {house.health} / {house.max_health}', font, GREY, width - 200, height - 20)
+	draw_text(f'1000', font, GREY, width - 220, 70)
+	draw_text(f'500', font, GREY, width - 75, 70)
+	draw_text(f'5000', font, GREY, width - 150, 70)
+
 
 class Castle():
 	def __init__(self, image100, x, y, scale):
@@ -206,10 +283,64 @@ class Castle():
 		bullet_group.add(bullet)
 		self.fired = True
 
+	def repair(self):
+		if self.coins >= 1000 and self.health < self.max_health:
+			self.health += 500
+			if self.health > self.max_health:
+				self.health = self.max_health
+			self.coins -= 1000
+
+	def fortify(self):
+		if self.coins >= 500:
+			self.max_health += 250
+			self.coins -= 500
+
 	def draw(self):
 		self.image = self.image100
 		screen.blit(self.image, self.rect)
 
+class Tower(pygame.sprite.Sprite):
+	def __init__(self, image100, x, y, scale):
+		pygame.sprite.Sprite.__init__(self)
+
+		width = image100.get_width()
+		height = image100.get_height()
+
+		self.image100 = pygame.transform.scale(image100, (int(width * scale), int(height * scale)))
+		self.rect = self.image100.get_rect()
+		self.rect.x = x 
+		self.rect.y = y 
+
+		self.target_acquired = False
+		self.angle = 0
+		self.fired = False
+		self.fire_cooldown = 1000
+		self.fired_last = 0
+
+		self.image = self.image100
+
+	def update(self, enemy_group):
+		self.target_acquired = False
+		for e in enemy_group:
+			if e.alive:
+				target_x, target_y = e.rect.midbottom
+				self.target_acquired = True
+				break
+		if self.target_acquired and pygame.time.get_ticks() - self.fired_last > self.fire_cooldown:
+			pos = (target_x, target_y)
+			
+			x_dist = pos[0] - self.rect.midleft[0]
+			y_dist = -(pos[1] - self.rect.midleft[1])
+			self.angle = math.degrees(math.atan2(y_dist, x_dist))
+			
+			bullet = Bullet(bullet_img, self.rect.midleft[0], self.rect.midleft[1], self.angle)
+			bullet_group.add(bullet)
+			
+			self.fired_last = pygame.time.get_ticks()
+
+	def draw(self, screen):
+		self.image = self.image100
+		screen.blit(self.image, self.rect)
 
 class Crosshair():
 	def __init__(self, scale):
@@ -231,10 +362,12 @@ class Crosshair():
 		screen.blit(self.image, self.rect)
 
 
-house = Castle(house_img, width - 50 - house_img.get_width(), height - house_img.get_height() - grassTile.get_height() + 35, 1)
+house = Castle(house_img, width - 50 - house_img.get_width() * 3, height - house_img.get_height() * 3 - grassTile.get_height() + 35, 3)
+
 
 crosshair = Crosshair(0.5)
 
+tower_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 
 pygame.display.set_caption('Castle Defender')
@@ -244,7 +377,7 @@ pygame.display.set_caption('Castle Defender')
 def main():
 	panel = ui.Panel(0, 0, screen)
 
-	start_label = ui.Label(width // 2, height // 2, 'Press any key to begin')
+	start_label = ui.Label(width // 2, 2 * height // 3, 'Press any key to begin', size = 32)
 
 
 	run = True
@@ -283,12 +416,15 @@ def main():
 def game():
 	run = True
 
-	
+	repair_button = ui.Button_No_Panel(width - 245, 10, (25, 25), (0,0,0), repair_img, 3)
+	armour_button = ui.Button_No_Panel(width - 100, 10, (25, 25), (0,0,0), armour_img, 3)
+	tower_button =  ui.Button_No_Panel(width - 170, 10, (25, 25), (0,0,0), tower_button_img, 3)
 	update_time = pygame.time.get_ticks()
 	#pygame.mixer.music.queue('Music/2-Dark Fantasy Studio- Demon\'s cage (seamless).wav')
 	#pygame.mixer.music.fadeout(3000)
 
 	audioMixer.play()
+	global wave_difficulty, target_difficulty, next_level, wave
 
 	while run:
 		clock.tick(fps)
@@ -299,17 +435,66 @@ def game():
 		screen.blit(tiledImage(width, grassTile.get_height(), grassTile), (0, height - grassTile.get_height()))
 		
 
+		for t in reversed(list(tower_group)):
+			t.draw(screen)
+		tower_group.update(enemy_group)
 		house.draw()
 
-		crosshair.draw()
+		
 
 		bullet_group.draw(screen)
 		bullet_group.update()
 
-		if pygame.time.get_ticks() - update_time > 2000:
-			i = random.randrange(len(enemy_types))
-			enemy_group.add(Enemy(enemy_health[i], enemy_animations[i], 200 + random.randrange(0, 200) - 100, height - 110, 2))
-			update_time = pygame.time.get_ticks()
+
+
+		if repair_button.draw(screen):
+			house.repair()
+		if tower_button.draw(screen):
+			if house.coins >= tower_cost and len(tower_group) < len(towers_positions):
+				tower = Tower(tower_img, towers_positions[len(tower_group)][0], towers_positions[len(tower_group)][1], 3)
+				tower_group.add(tower)
+				house.coins -= tower_cost
+		if armour_button.draw(screen):
+			house.fortify()
+
+
+		show_info()
+		crosshair.draw()
+		
+		if wave_difficulty < target_difficulty:
+			if pygame.time.get_ticks() - update_time > 2000:
+				i = random.randrange(len(enemy_types))
+				enemy_group.add(Enemy(enemy_health[i], enemy_animations[i], 200 + random.randrange(0, 200) - 100, height - 110, 2))
+				update_time = pygame.time.get_ticks()
+				wave_difficulty += enemy_health[i]
+
+
+		#check if all enemies have been spawned
+		if wave_difficulty >= target_difficulty:
+			#count how many are still alive
+			enemies_alive = 0
+			for e in enemy_group:
+				if e.alive:
+					enemies_alive += 1
+
+			if enemies_alive == 0 and not next_level:
+				next_level = True
+				level_reset_time = pygame.time.get_ticks()
+
+
+		#move onto the next level
+		if next_level:
+			draw_text('Level Complete', font_60, WHITE, width // 2, height // 2)
+			if pygame.time.get_ticks() - level_reset_time > 1500:
+				# TODO : Go to shop
+				next_level = False
+				wave += 1
+				
+				last_enemy = pygame.time.get_ticks()
+				target_difficulty *= difficulty_multiplier
+				wave_difficulty = 0
+				enemy_group.empty()
+
 		enemy_group.update(screen, house, bullet_group, explosions_to_create)
 
 
@@ -329,13 +514,13 @@ def game():
 				audioMixer.play()
 
 
-		if pygame.mouse.get_pressed()[0] == 1 and not house.fired:
+		if pygame.mouse.get_pressed()[0] == 1 and not house.fired and pygame.mouse.get_pos()[1] > 100:	
 			house.shoot()
 
 		if pygame.mouse.get_pressed()[0] == 0:
 			house.fired = False
 
-
+		
 
 		pygame.display.update()
 
@@ -345,6 +530,9 @@ def options():
 	music_slider = ui.Slider(width // 2 - 50, height // 2 - 25, (100, 50))
 	music_slider.p = audioMixer.getVolume()
 	backtogame_button = ui.Button(width // 2 - 50, height // 2 - 25 + 100, (100, 50), (255, 255, 255), None)
+
+	music_label = ui.Label(width // 3, height // 2, 'Music Volume')
+
 
 	while run:
 		clock.tick(30)
@@ -367,6 +555,7 @@ def options():
 
 
 		pygame.mixer.music.set_volume(music_slider.draw(panel))
+		music_label.draw(panel)
 
 		crosshair.draw()
 		pygame.display.update()

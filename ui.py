@@ -11,22 +11,29 @@ class Panel():
 
 
 class Label():
-	def __init__(self, x, y, text, font = "Times New Roman", size = 16):
+	def __init__(self, x, y, text, font = "Times New Roman", size = 16, centered = True):
 		self.x = x 
 		self.y = y 
 		self.text = text
 		self.fontName = font
 		self.size = size
+		f = pygame.font.SysFont(self.fontName, self.size)
+		self.img = f.render(self.text, False, (255, 255, 255))
+		self.width = self.img.get_width()
+		self.height = self.img.get_height()
+		self.centered = centered
+		if self.centered:
+			self.x = self.x - self.width // 2
+			self.y = self.y - self.height // 2
+
 
 	def draw(self, screen):
-		font =  pygame.font.SysFont(self.fontName, self.size)
-
-		img = font.render(self.text, False, (255, 255, 255))
-
-		screen.surface.blit(img, (self.x + screen.x, self.y + screen.y))
+		screen.surface.blit(self.img, (self.x + screen.x, self.y + screen.y))
 
 	def set_text(self, text):
 		self.text = text
+		f = pygame.font.SysFont(self.fontName, self.size)
+		self.img = f.render(self.text, False, (255, 255, 255))
 
 
 class Slider():
@@ -123,8 +130,8 @@ class Button():
 		self.y = y 
 
 
-	def draw(self, screen):
-		rect = pygame.Rect((self.x + screen.x, self.y + screen.y), self.size)
+	def draw(self, panel):
+		rect = pygame.Rect((self.x + panel.x, self.y + panel.y), self.size)
 		pos = pygame.mouse.get_pos()
 
 		
@@ -161,5 +168,92 @@ class Button():
 		surf.blit(self.img, (2 + self.size[0] // 2 - self.img.get_rect().w // 2 , 2 + self.size[1] // 2 - self.img.get_rect().h // 2))
 
 
-		screen.surface.blit(surf, (self.x, self.y))
+		panel.surface.blit(surf, (self.x, self.y))
+		return action
+
+class Button_No_Panel():
+
+	HOVER_COL = (200, 200, 200)
+	CLICKED_COL = (0, 0, 0)
+	ACTION_COL = (255, 255, 255)
+
+
+	def __init__(self, x, y, size, color = (0, 100, 0), img = None, scale = 1):
+
+		self.x = x
+		self.y = y
+
+		
+		self.color = color
+
+		self.clicked = False
+
+		if img:
+			self.img = img
+			imgSize = [img.get_rect().w * scale, img.get_rect().h * scale]
+			if size[0] > img.get_rect().w:
+				imgSize[0] = size[0]
+			else:
+				imgSize[0] = img.get_rect().w + 10
+
+			if size[1] > img.get_rect().h:
+				imgSize[1] = size[1]
+			else:
+				imgSize[1] = img.get_rect().h + 10
+
+
+			self.size = (imgSize[0], imgSize[1])
+			surf = pygame.Surface(self.size)
+			pygame.draw.rect(surf, color, pygame.Rect((0, 0), self.size))
+		else:
+			surf = pygame.Surface((size[0], size[1]))
+			pygame.draw.rect(surf, color, pygame.Rect((0, 0), (size)))
+			self.img = surf
+			self.size = size
+
+	def set_pos(self, x, y):
+		self.x = x 
+		self.y = y 
+
+	def set_color(self, hover, clicked, action, base):		self.color = base
+
+	def draw(self, screen):
+		rect = pygame.Rect((self.x, self.y), self.size)
+		pos = pygame.mouse.get_pos()
+
+		
+		col = self.color
+
+
+		action = False
+
+		if rect.collidepoint(pos):
+
+			if pygame.mouse.get_pressed()[0] == 1:
+				self.clicked = True
+				col = self.CLICKED_COL
+				
+				
+ 
+			if pygame.mouse.get_pressed()[0] == 0 and not self.clicked:
+				col = self.HOVER_COL
+				
+
+
+			if pygame.mouse.get_pressed()[0] == 0 and self.clicked:
+				action = True
+				self.clicked = False
+				col = self.ACTION_COL
+				
+
+
+		#Create Border
+		surf = pygame.Surface((self.size[0] + 4, self.size[1] + 4))
+		pygame.draw.rect(surf, col, pygame.Rect(0, 0, self.size[0] + 4, self.size[1] + 4))
+
+		#Blit image to button
+		surf.blit(self.img, (2 + self.size[0] // 2 - self.img.get_rect().w // 2 , 2 + self.size[1] // 2 - self.img.get_rect().h // 2))
+
+
+		screen.blit(surf, (self.x, self.y))
 		return action
