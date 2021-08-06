@@ -232,6 +232,7 @@ class Bullet(pygame.sprite.Sprite):
 			if self.frame_idx >= len(self.animation_frames):
 				self.frame_idx = 0
 			self.image = self.animation_frames[self.frame_idx]
+			
 			self.image = pygame.transform.rotate(pygame.transform.flip(self.image, True, False), math.degrees(self.angle))
 
 		self.x += self.dx
@@ -255,6 +256,14 @@ def show_info():
 	draw_text(f'500', font, GREY, width - 75, 70)
 	draw_text(f'5000', font, GREY, width - 150, 70)
 
+def lerp(x,y,z):
+	if z < 0:
+		z = 0 
+	elif z > 1:
+		z = 1
+
+	v = ((1 - z) * x) + (z * y)
+	return v
 
 class Castle():
 	def __init__(self, image100, x, y, scale):
@@ -349,7 +358,7 @@ class Crosshair():
 		height = image.get_height()
 
 		self.image = pygame.transform.flip(pygame.transform.scale(image, (int(width * scale), int(height * scale))), True, False)
-		print(self.image.get_colorkey())
+		#print(self.image.get_colorkey())
 		self.rect = self.image.get_rect()
 
 		#hide mouse
@@ -414,6 +423,8 @@ def main():
 
 
 def game():
+
+	global game_over
 	run = True
 
 	repair_button = ui.Button_No_Panel(width - 245, 10, (25, 25), (0,0,0), repair_img, 3)
@@ -444,7 +455,13 @@ def game():
 
 		bullet_group.draw(screen)
 		bullet_group.update()
+		#Add lighting
 
+		for bullet in bullet_group:
+			light = pygame.Surface((bullet.rect.width * 2, bullet.rect.height * 2 ))
+			pygame.draw.circle(light, (10, 5, 5), (bullet.rect.width, bullet.rect.height), bullet.rect.size[0])
+			light.set_colorkey((0,0,0))
+			screen.blit(light, (bullet.rect.x - bullet.rect.width // 2, bullet.rect.y - bullet.rect.height // 2), special_flags = BLEND_RGB_ADD)
 
 
 		if repair_button.draw(screen):
@@ -462,11 +479,14 @@ def game():
 		crosshair.draw()
 		
 		if wave_difficulty < target_difficulty:
-			if pygame.time.get_ticks() - update_time > 2000:
+			delay = lerp(2000, 500, pygame.time.get_ticks() / 180000)
+			if pygame.time.get_ticks() - update_time > delay:
 				i = random.randrange(len(enemy_types))
 				enemy_group.add(Enemy(enemy_health[i], enemy_animations[i], 200 + random.randrange(0, 200) - 100, height - 110, 2))
 				update_time = pygame.time.get_ticks()
 				wave_difficulty += enemy_health[i]
+		#		print(delay)
+		#		print(pygame.time.get_ticks() / 120000)
 
 
 		#check if all enemies have been spawned
@@ -495,6 +515,12 @@ def game():
 				wave_difficulty = 0
 				enemy_group.empty()
 
+
+		if house.health <= 0:
+			game_over = True
+			draw_text('Game Over', font_60, WHITE, width // 2, height // 2)
+
+
 		enemy_group.update(screen, house, bullet_group, explosions_to_create)
 
 
@@ -514,7 +540,7 @@ def game():
 				audioMixer.play()
 
 
-		if pygame.mouse.get_pressed()[0] == 1 and not house.fired and pygame.mouse.get_pos()[1] > 100:	
+		if pygame.mouse.get_pressed()[0] == 1 and not house.fired and pygame.mouse.get_pos()[1] > 100 and not game_over:	
 			house.shoot()
 
 		if pygame.mouse.get_pressed()[0] == 0:
