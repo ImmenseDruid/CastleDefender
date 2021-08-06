@@ -1,6 +1,7 @@
 
 import pygame, os, math, random, ui, spriteSheet, audio
 
+
 from enemy import Enemy
 
 from pygame.locals import *
@@ -116,7 +117,10 @@ towers_positions = [
 ]
 
 
-
+#load high_score
+if os.path.exists('score.txt'):
+	with open('score.txt', 'r') as file:
+		high_score = int(file.read())
 
 def tiledImage(width, height, img):
 	surf = pygame.Surface((width, height))
@@ -435,7 +439,7 @@ def game():
 	#pygame.mixer.music.fadeout(3000)
 
 	audioMixer.play()
-	global wave_difficulty, target_difficulty, next_level, wave
+	global wave_difficulty, target_difficulty, next_level, wave, high_score
 
 	while run:
 		clock.tick(fps)
@@ -505,6 +509,12 @@ def game():
 		#move onto the next level
 		if next_level:
 			draw_text('Level Complete', font_60, WHITE, width // 2, height // 2)
+			#update high score
+			if house.score > high_score:
+				high_score = house.score 
+				with open('score.txt', 'w') as file:
+					file.write(str(high_score))
+
 			if pygame.time.get_ticks() - level_reset_time > 1500:
 				# TODO : Go to shop
 				next_level = False
