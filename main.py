@@ -17,8 +17,8 @@ fps = 60
 
 #this is a new thing
 
-font = pygame.font.SysFont('Futura', 30)
-font_60 = pygame.font.SysFont('Futura', 60)
+font = pygame.font.SysFont('Times New Roman', 30)
+font_60 = pygame.font.SysFont('Times New Roman', 60)
 
 
 #Colors
