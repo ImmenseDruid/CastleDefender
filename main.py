@@ -444,101 +444,131 @@ def game():
 	while run:
 		clock.tick(fps)
 
+		#create background
 		screen.blit(bg, (0,0))
 		screen.blit(tiledImage(width, mountains.get_height(), mountains), (0, height - mountains.get_height()))
 		screen.blit(graveyard, (0, height - graveyard.get_height()))
 		screen.blit(tiledImage(width, grassTile.get_height(), grassTile), (0, height - grassTile.get_height()))
+
+		if not game_over:
+			
 		
 
-		for t in reversed(list(tower_group)):
-			t.draw(screen)
-		tower_group.update(enemy_group)
-		house.draw()
+			for t in reversed(list(tower_group)):
+				t.draw(screen)
+			tower_group.update(enemy_group)
+			house.draw()
 
-		
+			
 
-		bullet_group.draw(screen)
-		bullet_group.update()
-		#Add lighting
+			bullet_group.draw(screen)
+			bullet_group.update()
+			#Add lighting
 
-		for bullet in bullet_group:
-			light = pygame.Surface((bullet.rect.width * 2, bullet.rect.height * 2 ))
-			pygame.draw.circle(light, (10, 5, 5), (bullet.rect.width, bullet.rect.height), bullet.rect.size[0])
-			light.set_colorkey((0,0,0))
-			screen.blit(light, (bullet.rect.x - bullet.rect.width // 2, bullet.rect.y - bullet.rect.height // 2), special_flags = BLEND_RGB_ADD)
-
-
-		if repair_button.draw(screen):
-			house.repair()
-		if tower_button.draw(screen):
-			if house.coins >= tower_cost and len(tower_group) < len(towers_positions):
-				tower = Tower(tower_img, towers_positions[len(tower_group)][0], towers_positions[len(tower_group)][1], 3)
-				tower_group.add(tower)
-				house.coins -= tower_cost
-		if armour_button.draw(screen):
-			house.fortify()
+			for bullet in bullet_group:
+				light = pygame.Surface((bullet.rect.width * 2, bullet.rect.height * 2 ))
+				pygame.draw.circle(light, (10, 5, 5), (bullet.rect.width, bullet.rect.height), bullet.rect.size[0])
+				light.set_colorkey((0,0,0))
+				screen.blit(light, (bullet.rect.x - bullet.rect.width // 2, bullet.rect.y - bullet.rect.height // 2), special_flags = BLEND_RGB_ADD)
 
 
-		show_info()
-		crosshair.draw()
-		
-		if wave_difficulty < target_difficulty:
-			delay = lerp(2000, 500, pygame.time.get_ticks() / 180000)
-			if pygame.time.get_ticks() - update_time > delay:
-				i = random.randrange(len(enemy_types))
-				enemy_group.add(Enemy(enemy_health[i], enemy_animations[i], 200 + random.randrange(0, 200) - 100, height - 110, 2))
-				update_time = pygame.time.get_ticks()
-				wave_difficulty += enemy_health[i]
-		#		print(delay)
-		#		print(pygame.time.get_ticks() / 120000)
+			if repair_button.draw(screen):
+				house.repair()
+			if tower_button.draw(screen):
+				if house.coins >= tower_cost and len(tower_group) < len(towers_positions):
+					tower = Tower(tower_img, towers_positions[len(tower_group)][0], towers_positions[len(tower_group)][1], 3)
+					tower_group.add(tower)
+					house.coins -= tower_cost
+			if armour_button.draw(screen):
+				house.fortify()
 
 
-		#check if all enemies have been spawned
-		if wave_difficulty >= target_difficulty:
-			#count how many are still alive
-			enemies_alive = 0
-			for e in enemy_group:
-				if e.alive:
-					enemies_alive += 1
+			show_info()
+			
+			
+			if wave_difficulty < target_difficulty:
+				delay = lerp(2000, 500, pygame.time.get_ticks() / 180000)
+				if pygame.time.get_ticks() - update_time > delay:
+					i = random.randrange(len(enemy_types))
+					enemy_group.add(Enemy(enemy_health[i], enemy_animations[i], 200 + random.randrange(0, 200) - 100, height - 110, 2))
+					update_time = pygame.time.get_ticks()
+					wave_difficulty += enemy_health[i]
+			#		print(delay)
+			#		print(pygame.time.get_ticks() / 120000)
 
-			if enemies_alive == 0 and not next_level:
-				next_level = True
-				level_reset_time = pygame.time.get_ticks()
+
+			#check if all enemies have been spawned
+			if wave_difficulty >= target_difficulty:
+				#count how many are still alive
+				enemies_alive = 0
+				for e in enemy_group:
+					if e.alive:
+						enemies_alive += 1
+
+				if enemies_alive == 0 and not next_level:
+					next_level = True
+					level_reset_time = pygame.time.get_ticks()
 
 
-		#move onto the next level
-		if next_level:
-			draw_text('Level Complete', font_60, WHITE, width // 2, height // 2)
-			#update high score
-			if house.score > high_score:
-				high_score = house.score 
-				with open('score.txt', 'w') as file:
-					file.write(str(high_score))
+			#move onto the next level
+			if next_level:
+				draw_text('Level Complete', font_60, WHITE, width // 2, height // 2)
+				#update high score
+				if house.score > high_score:
+					high_score = house.score 
+					with open('score.txt', 'w') as file:
+						file.write(str(high_score))
 
-			if pygame.time.get_ticks() - level_reset_time > 1500:
-				# TODO : Go to shop
-				next_level = False
-				wave += 1
+				if pygame.time.get_ticks() - level_reset_time > 1500:
+					# TODO : Go to shop
+					next_level = False
+					wave += 1
+					
+					last_enemy = pygame.time.get_ticks()
+					target_difficulty *= difficulty_multiplier
+					wave_difficulty = 0
+					enemy_group.empty()
+
+
+			if house.health <= 0:
+				game_over = True
 				
-				last_enemy = pygame.time.get_ticks()
-				target_difficulty *= difficulty_multiplier
-				wave_difficulty = 0
-				enemy_group.empty()
 
 
-		if house.health <= 0:
-			game_over = True
+			enemy_group.update(screen, house, bullet_group, explosions_to_create)
+
+
+			for i, e in reversed(list(enumerate(explosions_to_create))):
+				explosion_group.add(Explosion(e[0], e[1]))
+				explosions_to_create.remove(explosions_to_create[i])
+
+			explosion_group.update()
+
+
+			if pygame.mouse.get_pressed()[0] == 1 and not house.fired and pygame.mouse.get_pos()[1] > 100:	
+				house.shoot()
+
+			if pygame.mouse.get_pressed()[0] == 0:
+				house.fired = False
+		else:
 			draw_text('Game Over', font_60, WHITE, width // 2, height // 2)
+			draw_text('Press the "A" key for funsizzies', font_60, WHITE, width // 2, height // 2 + 60)
 
+			key = pygame.key.get_pressed()
 
-		enemy_group.update(screen, house, bullet_group, explosions_to_create)
-
-
-		for i, e in reversed(list(enumerate(explosions_to_create))):
-			explosion_group.add(Explosion(e[0], e[1]))
-			explosions_to_create.remove(explosions_to_create[i])
-
-		explosion_group.update()
+			if key[K_a]:
+				# Reset Variables
+				game_over = False
+				wave = 1
+				target_difficulty = 1000
+				wave_difficulty = 0 
+				enemy_group.empty()
+				last_enemy = pygame.time.get_ticks()
+				tower_group.empty()
+				house.score = 0 
+				house.health = 1000 
+				house.max_health = 1000 
+				house.coins = 0
 
 		for event in pygame.event.get():
 			if event.type == QUIT:
@@ -550,12 +580,7 @@ def game():
 				audioMixer.play()
 
 
-		if pygame.mouse.get_pressed()[0] == 1 and not house.fired and pygame.mouse.get_pos()[1] > 100 and not game_over:	
-			house.shoot()
-
-		if pygame.mouse.get_pressed()[0] == 0:
-			house.fired = False
-
+		crosshair.draw()
 		
 
 		pygame.display.update()
